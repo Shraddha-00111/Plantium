@@ -13,6 +13,15 @@ interface ResultViewProps {
   isLoading?: boolean;
   isError?: boolean;
   onScanAgain: () => void;
+  plantName?: string;
+  scientificName?: string;
+  careInstructions?: {
+    watering?: string;
+    light?: string;
+    soil?: string;
+    temperature?: string;
+    humidity?: string;
+  };
 }
 
 const ResultView: React.FC<ResultViewProps> = ({
@@ -23,6 +32,9 @@ const ResultView: React.FC<ResultViewProps> = ({
   isLoading = false,
   isError = false,
   onScanAgain,
+  plantName,
+  scientificName,
+  careInstructions
 }) => {
   return (
     <View className="flex-1 bg-background">
@@ -43,12 +55,26 @@ const ResultView: React.FC<ResultViewProps> = ({
             <Body className="text-center mt-4">Analyzing your plant...</Body>
           </View>
         ) : (
-          <ResultCard
-            diseaseName={isError ? 'Diagnosis Failed' : diseaseName}
-            description={isError ? 'We could not identify the disease. Please try again with a clearer image.' : description}
-            treatments={treatments}
-            isError={isError}
-          />
+          <>
+            <ResultCard
+              diseaseName={isError ? 'Diagnosis Failed' : diseaseName}
+              description={isError ? 'We could not identify the disease. Please try again with a clearer image.' : description}
+              treatments={treatments}
+              isError={isError}
+              plantName={plantName}
+              scientificName={scientificName}
+            />
+            
+            {careInstructions && Object.values(careInstructions).some(v => v) && (
+              <View className="mt-4">
+                <ResultCard
+                  diseaseName="Plant Care Guide"
+                  description="Here's how to take care of your plant:"
+                  careInstructions={careInstructions}
+                />
+              </View>
+            )}
+          </>
         )}
         
         <View className="my-6">

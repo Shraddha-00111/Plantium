@@ -29,6 +29,17 @@ export const H2: React.FC<TextProps> = ({ className = '', children, ...props }) 
   );
 };
 
+export const H3: React.FC<TextProps> = ({ className = '', children, ...props }) => {
+  const baseStyles = 'text-lg font-medium text-textDark';
+  const mergedStyles = twMerge(baseStyles, className);
+  
+  return (
+    <RNText className={mergedStyles} {...props}>
+      {children}
+    </RNText>
+  );
+};
+
 export const Body: React.FC<TextProps> = ({ className = '', children, ...props }) => {
   const baseStyles = 'text-base font-normal text-textDark';
   const mergedStyles = twMerge(baseStyles, className);

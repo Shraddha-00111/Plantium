@@ -51,6 +51,9 @@ export default function ScanScreen() {
           isLoading={isLoading}
           isError={isError}
           onScanAgain={handleScanAgain}
+          plantName={diagnosisResult?.plantName}
+          scientificName={diagnosisResult?.scientificName}
+          careInstructions={diagnosisResult?.careInstructions}
         />
       )}
     </View>

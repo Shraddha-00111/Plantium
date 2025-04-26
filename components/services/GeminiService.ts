@@ -13,6 +13,15 @@ export interface DiagnosisResult {
   description: string;
   treatments: string[];
   isError: boolean;
+  plantName?: string;
+  scientificName?: string;
+  careInstructions?: {
+    watering?: string;
+    light?: string;
+    soil?: string;
+    temperature?: string;
+    humidity?: string;
+  };
 }
 
 // Utility function to convert image to base64
@@ -46,7 +55,7 @@ function extractJsonFromText(text: string): any {
       try {
         return JSON.parse(jsonMatch[0]);
       } catch (e2) {
-        // Still couldn't parse
+        console.log("Found JSON-like structure but couldn't parse it:", jsonMatch[0]);
         return null;
       }
     }
@@ -68,17 +77,39 @@ export const analyzePlantImage = async (imageUri: string): Promise<DiagnosisResu
     You are a plant disease identification expert. Analyze this plant image and provide a detailed diagnosis.
     
     You MUST respond in VALID JSON format with the following structure:
+    I need the following information in JSON format:
+    1. Plant identification (name, scientific name, genus, family)
+    2. If there is any disease, identify it and provide:
+       - Disease name
+       - Symptoms
+       - Causes
+       - Treatment/Cure
+    3. General care information for this plant
+    
+    Format your response like this (valid JSON without markdown decorations):
     {
-      "diseaseName": "Name of the disease or issue",
-      "description": "Detailed description of the disease or issue, including symptoms visible in the image",
-      "treatments": ["Treatment suggestion 1", "Treatment suggestion 2", "Treatment suggestion 3", "Treatment suggestion 4"]
-    }
-
-    If the plant appears healthy or you can't identify any disease, use:
-    {
-      "diseaseName": "Healthy Plant" or "Unidentified Plant",
-      "description": "This plant appears healthy with no visible disease symptoms" or "Insufficient information to identify the plant or disease",
-      "treatments": ["Regular watering", "Standard fertilization", "Normal care recommendations"]
+      "plant": {
+        "name": "Plant common name",
+        "scientificName": "Scientific name",
+        "genus": "Genus",
+        "family": "Family name"
+      },
+      "isHealthy": true/false,
+      "disease": {
+        "name": "Disease name (if any)",
+        "symptoms": "List of symptoms",
+        "causes": "What causes this disease",
+        "treatment": "How to treat this disease"
+      },
+      "care": {
+        "watering": "Watering details",
+        "light": "Light requirements",
+        "soil": "Soil preference",
+        "temperature": "Temperature range",
+        "humidity": "Humidity level",
+        "fertilizing": "Fertilizing instructions"
+      },
+      "additionalInfo": "Any additional relevant information"
     }
 
     IMPORTANT: Your response MUST be a VALID JSON object ONLY. Do not include any additional text, code blocks, or formatting.
@@ -102,53 +133,123 @@ export const analyzePlantImage = async (imageUri: string): Promise<DiagnosisResu
     // Try to extract JSON from the response
     const jsonResponse = extractJsonFromText(text);
     
-    if (jsonResponse && jsonResponse.diseaseName && jsonResponse.description && Array.isArray(jsonResponse.treatments)) {
-      // Successfully extracted valid JSON with all required fields
+    if (jsonResponse) {
+      console.log('Successfully parsed JSON response');
+      
+      // Convert the new JSON structure to our DiagnosisResult interface
+      const disease = jsonResponse.disease || {};
+      const plant = jsonResponse.plant || {};
+      const care = jsonResponse.care || {};
+      
+      // Extract treatments from the disease treatment field
+      let treatments: string[] = [];
+      if (disease.treatment) {
+        // If treatment is a string, split it into an array
+        if (typeof disease.treatment === 'string') {
+          treatments = disease.treatment
+            .split(/[.;\n]/) // Split by periods, semicolons, or new lines
+            .map((t: string) => t.trim())
+            .filter((t: string) => t.length > 0);
+        } else if (Array.isArray(disease.treatment)) {
+          treatments = disease.treatment;
+        }
+      }
+      
+      // Ensure we have at least one treatment
+      if (treatments.length === 0) {
+        treatments = ["Follow general plant care guidelines"];
+      }
+      
+      // Create a comprehensive description combining disease info and health status
+      let description = '';
+      if (jsonResponse.isHealthy === false && disease.symptoms) {
+        description = `${disease.symptoms}\n\nCauses: ${disease.causes || 'Unknown'}`;
+      } else if (jsonResponse.isHealthy === true) {
+        description = "This plant appears to be healthy with no visible disease symptoms.";
+      } else {
+        description = disease.symptoms || "Unable to determine detailed plant health status.";
+      }
+      
       return {
-        diseaseName: jsonResponse.diseaseName,
-        description: jsonResponse.description,
-        treatments: jsonResponse.treatments,
-        isError: false
+        diseaseName: disease.name || (jsonResponse.isHealthy ? "Healthy Plant" : "Unidentified Issue"),
+        description: description,
+        treatments: treatments,
+        isError: false,
+        plantName: plant.name,
+        scientificName: plant.scientificName,
+        careInstructions: {
+          watering: care.watering,
+          light: care.light,
+          soil: care.soil,
+          temperature: care.temperature,
+          humidity: care.humidity
+        }
       };
     } else {
       // Extract information from the text response in a more forgiving way
-      console.log('Could not parse JSON response, attempting to extract information from text');
+      console.log('Could not parse JSON response, attempting to extract information using regex');
+      
+      // Try to extract plant name
+      let plantName = "Unknown Plant";
+      let scientificName = "";
+      const plantNameMatch = text.match(/"name"\s*:\s*"([^"]+)"/);
+      if (plantNameMatch && plantNameMatch[1]) {
+        plantName = plantNameMatch[1];
+      }
+      
+      const scientificNameMatch = text.match(/"scientificName"\s*:\s*"([^"]+)"/);
+      if (scientificNameMatch && scientificNameMatch[1]) {
+        scientificName = scientificNameMatch[1];
+      }
       
       // Try to extract disease name
       let diseaseName = "Analysis Result";
-      if (text.includes("diseaseName") && text.includes(":")) {
-        const diseaseNameMatch = text.match(/"diseaseName"\s*:\s*"([^"]+)"/);
-        if (diseaseNameMatch && diseaseNameMatch[1]) {
-          diseaseName = diseaseNameMatch[1];
-        }
+      const diseaseNameMatch = text.match(/"name"\s*:\s*"([^"]+)"/);
+      if (diseaseNameMatch && diseaseNameMatch[1] && text.includes("disease")) {
+        diseaseName = diseaseNameMatch[1];
       }
       
-      // Try to extract description
-      let description = text.substring(0, 300) + (text.length > 300 ? "..." : "");
-      if (text.includes("description") && text.includes(":")) {
-        const descriptionMatch = text.match(/"description"\s*:\s*"([^"]+)"/);
-        if (descriptionMatch && descriptionMatch[1]) {
-          description = descriptionMatch[1];
-        }
+      // Try to extract disease symptoms/description
+      let description = "";
+      const symptomsMatch = text.match(/"symptoms"\s*:\s*"([^"]+)"/);
+      if (symptomsMatch && symptomsMatch[1]) {
+        description = symptomsMatch[1];
+      } else {
+        // If no symptoms found, extract a portion of the text for description
+        description = text.substring(0, 300) + (text.length > 300 ? "..." : "");
       }
       
       // Try to extract treatments
-      let treatments = ["Contact a plant specialist for more information"];
-      if (text.includes("treatments") && text.includes("[")) {
-        const treatmentsSection = text.match(/"treatments"\s*:\s*\[(.*?)\]/s);
-        if (treatmentsSection && treatmentsSection[1]) {
-          const treatmentItems = treatmentsSection[1].match(/"([^"]+)"/g);
-          if (treatmentItems && treatmentItems.length > 0) {
-            treatments = treatmentItems.map(item => item.replace(/"/g, ''));
-          }
-        }
+      let treatments: string[] = ["Contact a plant specialist for more information"];
+      const treatmentMatch = text.match(/"treatment"\s*:\s*"([^"]+)"/);
+      if (treatmentMatch && treatmentMatch[1]) {
+        treatments = treatmentMatch[1]
+          .split(/[.;\n]/) // Split by periods, semicolons, or new lines
+          .map((t: string) => t.trim())
+          .filter((t: string) => t.length > 0);
+      }
+      
+      // Try to extract care information
+      let careInstructions: any = {};
+      
+      const wateringMatch = text.match(/"watering"\s*:\s*"([^"]+)"/);
+      if (wateringMatch && wateringMatch[1]) {
+        careInstructions.watering = wateringMatch[1];
+      }
+      
+      const lightMatch = text.match(/"light"\s*:\s*"([^"]+)"/);
+      if (lightMatch && lightMatch[1]) {
+        careInstructions.light = lightMatch[1];
       }
       
       return {
         diseaseName,
         description,
         treatments,
-        isError: false
+        isError: false,
+        plantName,
+        scientificName,
+        careInstructions
       };
     }
   } catch (error) {
@@ -175,7 +276,16 @@ function getMockResult(): DiagnosisResult {
         'Avoid overhead watering which can spread spores.',
         'Ensure plants have adequate spacing for airflow.'
       ],
-      isError: false
+      isError: false,
+      plantName: 'Rose',
+      scientificName: 'Rosa sp.',
+      careInstructions: {
+        watering: 'Water deeply but infrequently',
+        light: 'Full sun to partial shade',
+        soil: 'Well-draining, rich soil',
+        temperature: '65-75°F (18-24°C)',
+        humidity: 'Moderate'
+      }
     },
     {
       diseaseName: 'Leaf Spot',
@@ -186,7 +296,16 @@ function getMockResult(): DiagnosisResult {
         'Improve air circulation around plants.',
         'Avoid wetting leaves when watering.'
       ],
-      isError: false
+      isError: false,
+      plantName: 'Philodendron',
+      scientificName: 'Philodendron sp.',
+      careInstructions: {
+        watering: 'Allow soil to dry out between waterings',
+        light: 'Bright, indirect light',
+        soil: 'Well-draining potting mix',
+        temperature: '65-80°F (18-27°C)',
+        humidity: 'High'
+      }
     },
     {
       diseaseName: 'Root Rot',
@@ -197,7 +316,16 @@ function getMockResult(): DiagnosisResult {
         'Ensure the pot has adequate drainage holes.',
         'Trim any damaged or rotting roots when repotting.'
       ],
-      isError: false
+      isError: false,
+      plantName: 'Snake Plant',
+      scientificName: 'Sansevieria trifasciata',
+      careInstructions: {
+        watering: 'Allow soil to dry completely between waterings',
+        light: 'Low to bright indirect light',
+        soil: 'Well-draining, sandy soil',
+        temperature: '70-90°F (21-32°C)',
+        humidity: 'Low to moderate'
+      }
     }
   ];
   
