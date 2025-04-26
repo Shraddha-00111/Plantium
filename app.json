@@ -1,11 +1,12 @@
 {
   "expo": {
-    "name": "plantium",
+    "name": "Plant Disease Detection",
     "slug": "plantium",
+    "description": "A mobile app to detect and diagnose plant diseases using AI technology.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "plantium",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -31,6 +32,12 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Plant Disease Detection to access your camera to scan plants."
         }
       ]
     ],
