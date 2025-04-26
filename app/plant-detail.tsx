@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AppBar from '../components/molecules/AppBar';
@@ -6,71 +6,43 @@ import { Body, H1, H2, H3 } from '../components/atoms/Typography';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 
-// Pre-loaded plant images by category
-const plantImagesByCategory = {
-  // Common houseplants
-  default: [
-    'https://images.unsplash.com/photo-1620127682229-33388276e540?q=80&w=1000',
-    'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?q=80&w=1000',
-    'https://images.unsplash.com/photo-1685351819487-36c37af64d37?q=80&w=1000',
-  ],
-  // Leafy tropical plants
-  monstera: [
-    'https://images.unsplash.com/photo-1614594895304-fe7116ac3b9e?q=80&w=1000',
-    'https://images.unsplash.com/photo-1682078994167-894c82c9bca5?q=80&w=1000',
-  ],
-  pothos: [
-    'https://images.unsplash.com/photo-1655113411933-a2ed9ee40e76?q=80&w=1000',
-    'https://images.unsplash.com/photo-1632207801314-d50961451ddb?q=80&w=1000',
-  ],
-  fern: [
-    'https://images.unsplash.com/photo-1658900197614-6b7e79bee658?q=80&w=1000',
-    'https://images.unsplash.com/photo-1689165021394-27172636b2a4?q=80&w=1000',
-  ],
-  // Succulents and cacti
-  succulent: [
-    'https://images.unsplash.com/photo-1485955900006-10f4d324d411?q=80&w=1000',
-    'https://images.unsplash.com/photo-1632209579377-9f10a1fb636f?q=80&w=1000',
-  ],
-  cactus: [
-    'https://images.unsplash.com/photo-1475590655394-1cc53e8e56bd?q=80&w=1000',
-    'https://images.unsplash.com/photo-1558693168-c370615b54e0?q=80&w=1000',
-  ],
-  // Flowering plants
-  rose: [
-    'https://images.unsplash.com/photo-1589848563537-70d142e62724?q=80&w=1000',
-    'https://images.unsplash.com/photo-1583634852966-dbbef0a53a56?q=80&w=1000',
-  ],
-  orchid: [
-    'https://images.unsplash.com/photo-1621592484082-2d05b1290d7a?q=80&w=1000',
-    'https://images.unsplash.com/photo-1610798957892-f686d0d605c3?q=80&w=1000',
-  ],
-  // Vegetable plants
-  tomato: [
-    'https://images.unsplash.com/photo-1592818868295-f7c7bfdee18d?q=80&w=1000',
-    'https://images.unsplash.com/photo-1599144259294-d1ae7fddecfa?q=80&w=1000',
-  ],
-  potato: [
-    'https://images.unsplash.com/photo-1518977676601-b53f82aba655?q=80&w=1000',
-    'https://images.unsplash.com/photo-1635774855317-edf3ee4463db?q=80&w=1000',
-  ],
+// Local plant images mapping - only include images that actually exist
+const LOCAL_PLANT_IMAGES: Record<string, any> = {
+  // This will be populated with available images from assets/plants folder
+  potato: require('../assets/plants/potato.jpg'),
+  // Add more as needed when you have the actual image files
 };
 
-// Helper to find the best matching image for a plant
-const findPlantImage = (plantName: string) => {
-  if (!plantName) return plantImagesByCategory.default[0];
-  
-  const nameLower = plantName.toLowerCase();
-  
-  // Check for direct matches first
-  for (const [category, images] of Object.entries(plantImagesByCategory)) {
-    if (nameLower.includes(category)) {
-      return images[Math.floor(Math.random() * images.length)];
+// Use a simple default image that we know exists in the React Native framework
+const DEFAULT_IMAGE = { uri: 'https://reactnative.dev/img/tiny_logo.png' };
+
+// Get the matching local image for a plant, or use the captured image
+const getPlantImage = (plantName: string, capturedImageUri?: string) => {
+  try {
+    // Always prioritize the captured image when available
+    if (capturedImageUri) {
+      return { uri: capturedImageUri };
     }
+    
+    // Try to find a matching local image based on plant name
+    if (plantName) {
+      const normalizedName = plantName.toLowerCase().trim();
+      
+      // Check for common plant names that we have images for
+      for (const [key, image] of Object.entries(LOCAL_PLANT_IMAGES)) {
+        if (normalizedName.includes(key)) {
+          return image;
+        }
+      }
+    }
+    
+    // If no matching image is found, use the default React Native logo
+    return DEFAULT_IMAGE;
+  } catch (error) {
+    console.error('Error loading plant image:', error);
+    // In case of any errors, return a guaranteed working image
+    return DEFAULT_IMAGE;
   }
-  
-  // Use default images if no match
-  return plantImagesByCategory.default[Math.floor(Math.random() * plantImagesByCategory.default.length)];
 };
 
 // Mock trait items data
@@ -196,12 +168,10 @@ export default function PlantDetailScreen() {
   const [modalContent, setModalContent] = useState<any>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
-  const [coverImage, setCoverImage] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // The plant data would normally come from params or fetch from an API
-  // This is mockup data for demonstration
   const plantData = {
     name: params.plantName as string || 'Monstera Deliciosa',
     scientificName: params.scientificName as string || 'Monstera deliciosa',
@@ -209,20 +179,25 @@ export default function PlantDetailScreen() {
     family: params.family as string || 'Araceae',
     diseaseName: params.diseaseName as string || '',
     diseaseDescription: params.description as string || '',
+    // Get the appropriate image source with fallbacks
+    coverImage: getPlantImage(params.plantName as string, params.imageUri as string),
   };
 
-  // Set up cover image when component mounts
-  useEffect(() => {
-    // Priority: 1. Captured image, 2. Matching stock photo
-    if (params.imageUri) {
-      setCoverImage(params.imageUri as string);
-    } else {
-      setCoverImage(findPlantImage(plantData.name));
-    }
-  }, [plantData.name, params.imageUri]);
-
-  const onImageLoad = () => {
+  // Handle image load completion
+  const handleImageLoad = () => {
     setImageLoading(false);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Handle image loading error
+  const handleImageError = () => {
+    console.log('Image failed to load, using fallback');
+    setImageLoading(false);
+    // Still fade in even if there was an error (will show placeholder/background)
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
@@ -334,14 +309,16 @@ export default function PlantDetailScreen() {
         <View className="w-full h-56 bg-gray-200">
           <Animated.View style={{ opacity: fadeAnim, height: '100%', width: '100%' }}>
             <Image
-              source={{ uri: coverImage || findPlantImage(plantData.name) }}
+              source={plantData.coverImage}
               className="w-full h-full"
               resizeMode="cover"
-              onLoad={onImageLoad}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              defaultSource={require('../assets/plants/potato.jpg')} // Fallback that we know exists
             />
             <View className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
           </Animated.View>
-          
+
           {imageLoading && (
             <View className="absolute top-0 left-0 right-0 bottom-0 justify-center items-center">
               <ActivityIndicator size="large" color="#4CAF50" />
