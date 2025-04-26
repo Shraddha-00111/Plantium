@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system';
 // Replace with your actual Gemini API key 
 const API_KEY = "AIzaSyBbjfVgY_c913_Gh5KLsFDCVNjk1C8tBcQ";
 const MODEL_NAME = "gemini-2.0-flash";
+const IMAGE_MODEL_NAME = "gemini-1.5-pro-vision";
 
 // Initialize the Gemini API
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -76,17 +77,17 @@ export const analyzePlantImage = async (imageUri: string): Promise<DiagnosisResu
     
     // Create prompt with plant diagnosis instructions - make it extremely clear about JSON format
     const prompt = `
-    You are a plant disease identification expert. Analyze this plant image and provide a detailed diagnosis.
+    You are a plant disease identification expert. Analyze this plant image and provide a concise diagnosis.
     
-    You MUST respond in VALID JSON format with the following structure:
+    You MUST respond in VALID JSON format with the following structure and BE VERY CONCISE:
     I need the following information in JSON format:
     1. Plant identification (name, scientific name, genus, family)
     2. If there is any disease, identify it and provide:
        - Disease name
-       - Symptoms
-       - Causes
-       - Treatment/Cure
-    3. General care information for this plant
+       - Symptoms (2-3 sentences max)
+       - Causes (1-2 sentences max)
+       - Treatment/Cure (brief bullet points, 5-10 words each)
+    3. General care information for this plant (1-2 sentences per category max)
     
     Format your response like this (valid JSON without markdown decorations):
     {
@@ -99,22 +100,21 @@ export const analyzePlantImage = async (imageUri: string): Promise<DiagnosisResu
       "isHealthy": true/false,
       "disease": {
         "name": "Disease name (if any)",
-        "symptoms": "List of symptoms",
-        "causes": "What causes this disease",
-        "treatment": "How to treat this disease"
+        "symptoms": "Brief list of symptoms (2-3 sentences max)",
+        "causes": "Brief causes (1-2 sentences max)",
+        "treatment": "Brief treatment steps"
       },
       "care": {
-        "watering": "Watering details",
-        "light": "Light requirements",
-        "soil": "Soil preference",
-        "temperature": "Temperature range",
-        "humidity": "Humidity level",
-        "fertilizing": "Fertilizing instructions"
-      },
-      "additionalInfo": "Any additional relevant information"
+        "watering": "Brief watering instructions (1-2 sentences)",
+        "light": "Brief light requirements (1-2 sentences)",
+        "soil": "Brief soil preference (1-2 sentences)",
+        "temperature": "Temperature range (1 sentence)",
+        "humidity": "Humidity level (1 sentence)",
+        "fertilizing": "Brief fertilizing instructions (1 sentence)"
+      }
     }
 
-    IMPORTANT: Your response MUST be a VALID JSON object ONLY. Do not include any additional text, code blocks, or formatting.
+    IMPORTANT: Your response MUST be a VALID JSON object ONLY. All descriptions should be very concise and to the point. Avoid long, detailed explanations. Keep all text fields short and focused on key information only.
     `;
     
     // Prepare image for the API
@@ -407,5 +407,49 @@ export const generatePlantImageUrls = async (plantName: string, count: number = 
   } catch (error) {
     console.error('Error generating image URLs:', error);
     return defaultImages;
+  }
+};
+
+// Generate a plant image using Gemini
+export const generatePlantImage = async (plantName: string, diseaseDescription?: string): Promise<string> => {
+  try {
+    // Fallback image in case generation fails
+    const fallbackImage = 'https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?ixlib=rb-4.0.3';
+    
+    // Get the model
+    const model = genAI.getGenerativeModel({ model: IMAGE_MODEL_NAME });
+    
+    // Create a detailed prompt for realistic plant image
+    let prompt = `Generate a realistic, high-quality image of a ${plantName} plant.`;
+    
+    // If disease info is provided, include it in the prompt
+    if (diseaseDescription) {
+      prompt += ` Show the plant with signs of ${diseaseDescription}.`;
+    } else {
+      prompt += ' Show a healthy specimen with clear detail of leaves and overall structure.';
+    }
+    
+    prompt += ' The image should be photorealistic, well-lit, and suitable as a reference image.';
+    
+    // Make the API call to generate the image
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    
+    // Extract image data from response
+    if (response.candidates && response.candidates[0].content.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          // Return the base64 image data with appropriate prefix
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    
+    // If we couldn't extract an image, return the fallback
+    console.log('No image data found in response, using fallback image');
+    return fallbackImage;
+  } catch (error) {
+    console.error('Error generating plant image:', error);
+    return 'https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?ixlib=rb-4.0.3';
   }
 }; 

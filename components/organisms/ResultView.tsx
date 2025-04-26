@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Image, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Image, ScrollView, ActivityIndicator, Animated } from 'react-native';
 import AppBar from '../molecules/AppBar';
 import ResultCard from '../molecules/ResultCard';
 import Button from '../atoms/Button';
@@ -38,21 +38,41 @@ const ResultView: React.FC<ResultViewProps> = ({
   scientificName,
   careInstructions
 }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+
+  const onImageLoad = () => {
+    setImageLoaded(true);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  };
+
   return (
     <View className="flex-1 bg-background">
-      <AppBar title="Diagnosis Result" showBackButton />
+      <AppBar 
+        title="Diagnosis Result" 
+        showBackButton 
+        className="shadow-md"
+        titleClassName="text-lg font-bold"
+      />
       
-      <ScrollView className="flex-1 px-4 py-2">
+      <ScrollView className="flex-1 px-4 py-4">
         {imageUri && (
-          <Image
-            source={{ uri: imageUri }}
-            className="w-full h-48 rounded-xl mb-4"
-            resizeMode="cover"
-          />
+          <Animated.View style={{ opacity: fadeAnim }} className="mb-6">
+            <Image
+              source={{ uri: imageUri }}
+              className="w-full h-56 rounded-2xl border-2 border-white shadow-sm"
+              resizeMode="cover"
+              onLoad={onImageLoad}
+            />
+          </Animated.View>
         )}
         
         {isLoading ? (
-          <View className="p-8 bg-white rounded-xl items-center justify-center">
+          <View className="p-8 bg-white rounded-xl shadow-sm items-center justify-center my-6">
             <ActivityIndicator size="large" color="#4CAF50" />
             <Body className="text-center mt-4">Analyzing your plant...</Body>
           </View>
@@ -68,7 +88,7 @@ const ResultView: React.FC<ResultViewProps> = ({
             />
             
             {careInstructions && Object.values(careInstructions).some(v => v) && (
-              <View className="mt-4">
+              <View className="mt-8">
                 <ResultCard
                   diseaseName="Plant Care Guide"
                   description="Here's how to take care of your plant:"
@@ -79,12 +99,12 @@ const ResultView: React.FC<ResultViewProps> = ({
           </>
         )}
         
-        <View className="my-6">
+        <View className="my-8">
           {!isLoading && !isError && plantName && onViewDetails && (
             <Button
               variant="outline"
               onPress={onViewDetails}
-              className="w-full mb-4"
+              className="w-full mb-4 rounded-full py-4"
             >
               View Plant Details
             </Button>
@@ -93,7 +113,7 @@ const ResultView: React.FC<ResultViewProps> = ({
           <Button
             variant="primary"
             onPress={onScanAgain}
-            className="w-full"
+            className="w-full rounded-full py-4 shadow-md"
           >
             Scan Again
           </Button>
