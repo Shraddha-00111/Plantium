@@ -23,6 +23,25 @@ export default function ScanScreen() {
       setDiagnosisResult(result);
       setIsLoading(false);
       setIsError(result.isError);
+      
+      // If we have a valid result and it's not an error, let's navigate to the detailed view
+      if (!result.isError && result.plantName) {
+        // Short timeout to ensure the state updates before navigation
+        setTimeout(() => {
+          router.push({
+            pathname: '/plant-detail',
+            params: {
+              imageUri: imageUri,
+              plantName: result.plantName,
+              scientificName: result.scientificName || '',
+              genus: result.genus || '',
+              family: result.family || '',
+              diseaseName: result.diseaseName,
+              description: result.description
+            }
+          });
+        }, 500);
+      }
     } catch (error) {
       setIsLoading(false);
       setIsError(true);
@@ -34,6 +53,23 @@ export default function ScanScreen() {
     setCapturedImage(null);
     setDiagnosisResult(null);
     setIsError(false);
+  };
+
+  const handleViewDetails = () => {
+    if (diagnosisResult && capturedImage) {
+      router.push({
+        pathname: '/plant-detail',
+        params: {
+          imageUri: capturedImage,
+          plantName: diagnosisResult.plantName || 'Unknown Plant',
+          scientificName: diagnosisResult.scientificName || '',
+          genus: diagnosisResult.genus || '',
+          family: diagnosisResult.family || '',
+          diseaseName: diagnosisResult.diseaseName,
+          description: diagnosisResult.description
+        }
+      });
+    }
   };
 
   return (
@@ -54,6 +90,7 @@ export default function ScanScreen() {
           plantName={diagnosisResult?.plantName}
           scientificName={diagnosisResult?.scientificName}
           careInstructions={diagnosisResult?.careInstructions}
+          onViewDetails={handleViewDetails}
         />
       )}
     </View>

@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 import { twMerge } from 'tailwind-merge';
 
 interface ButtonProps extends TouchableOpacityProps {
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'outline';
   children: React.ReactNode;
   className?: string;
   textClassName?: string;
@@ -27,6 +27,10 @@ const Button: React.FC<ButtonProps> = ({
     secondary: {
       button: 'bg-lightGray',
       text: 'text-textDark'
+    },
+    outline: {
+      button: 'bg-transparent border-2 border-primary',
+      text: 'text-primary'
     }
   };
   

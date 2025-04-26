@@ -15,6 +15,8 @@ export interface DiagnosisResult {
   isError: boolean;
   plantName?: string;
   scientificName?: string;
+  genus?: string;
+  family?: string;
   careInstructions?: {
     watering?: string;
     light?: string;
@@ -177,6 +179,8 @@ export const analyzePlantImage = async (imageUri: string): Promise<DiagnosisResu
         isError: false,
         plantName: plant.name,
         scientificName: plant.scientificName,
+        genus: plant.genus,
+        family: plant.family,
         careInstructions: {
           watering: care.watering,
           light: care.light,
@@ -249,6 +253,8 @@ export const analyzePlantImage = async (imageUri: string): Promise<DiagnosisResu
         isError: false,
         plantName,
         scientificName,
+        genus: undefined,
+        family: undefined,
         careInstructions
       };
     }
@@ -279,6 +285,8 @@ function getMockResult(): DiagnosisResult {
       isError: false,
       plantName: 'Rose',
       scientificName: 'Rosa sp.',
+      genus: 'Rosa',
+      family: 'Rosaceae',
       careInstructions: {
         watering: 'Water deeply but infrequently',
         light: 'Full sun to partial shade',
@@ -299,6 +307,8 @@ function getMockResult(): DiagnosisResult {
       isError: false,
       plantName: 'Philodendron',
       scientificName: 'Philodendron sp.',
+      genus: 'Philodendron',
+      family: 'Araceae',
       careInstructions: {
         watering: 'Allow soil to dry out between waterings',
         light: 'Bright, indirect light',
@@ -319,6 +329,8 @@ function getMockResult(): DiagnosisResult {
       isError: false,
       plantName: 'Snake Plant',
       scientificName: 'Sansevieria trifasciata',
+      genus: 'Sansevieria',
+      family: 'Asparagaceae',
       careInstructions: {
         watering: 'Allow soil to dry completely between waterings',
         light: 'Low to bright indirect light',
@@ -332,4 +344,68 @@ function getMockResult(): DiagnosisResult {
   // Return a random result for demonstration
   const randomIndex = Math.floor(Math.random() * mockResults.length);
   return mockResults[randomIndex];
-} 
+}
+
+// Function to generate plant image URLs for the carousel
+export const generatePlantImageUrls = async (plantName: string, count: number = 3): Promise<string[]> => {
+  // Default fallback images if API fails
+  const defaultImages = [
+    'https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8cGxhbnR8ZW58MHx8MHx8&auto=format&fit=crop&w=500&q=60',
+    'https://images.unsplash.com/photo-1446071103084-c257b5f70672?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8cGxhbnR8ZW58MHx8MHx8&auto=format&fit=crop&w=500&q=60',
+    'https://images.unsplash.com/photo-1485955900006-10f4d324d411?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MTB8fHBsYW50fGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=500&q=60',
+  ];
+
+  if (!plantName) return defaultImages;
+  
+  try {
+    // Use the model to generate image URLs
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+    
+    const prompt = `
+      Find ${count} high-quality free stock images of the plant "${plantName}".
+      Return ONLY a valid JSON array of image URLs, nothing else.
+      Example: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
+      
+      Use high-quality images from sources like Unsplash, Pexels, or Pixabay.
+      Ensure the images are:
+      1. High resolution
+      2. Clear photos of the actual plant
+      3. Publicly accessible URLs
+      4. Directly link to the image file (.jpg, .png, etc.)
+      
+      IMPORTANT: Your response must be ONLY a valid JSON array of strings, nothing else.
+    `;
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text().trim();
+    
+    // Try to parse the response as JSON
+    try {
+      const jsonResponse = JSON.parse(text);
+      
+      if (Array.isArray(jsonResponse) && jsonResponse.length > 0) {
+        return jsonResponse.slice(0, count);
+      } else {
+        // If we got valid JSON but not an array, or an empty array
+        console.log('Invalid image URL format from API:', jsonResponse);
+        return defaultImages;
+      }
+    } catch (error) {
+      // If we couldn't parse the JSON, try to extract URLs using regex
+      console.log('Error parsing image URLs JSON:', error);
+      
+      const urlRegex = /(https?:\/\/[^\s"']+\.(jpg|jpeg|png|webp))/g;
+      const matches = text.match(urlRegex);
+      
+      if (matches && matches.length > 0) {
+        return matches.slice(0, count);
+      } else {
+        return defaultImages;
+      }
+    }
+  } catch (error) {
+    console.error('Error generating image URLs:', error);
+    return defaultImages;
+  }
+}; 

@@ -13,6 +13,7 @@ interface ResultViewProps {
   isLoading?: boolean;
   isError?: boolean;
   onScanAgain: () => void;
+  onViewDetails?: () => void;
   plantName?: string;
   scientificName?: string;
   careInstructions?: {
@@ -32,6 +33,7 @@ const ResultView: React.FC<ResultViewProps> = ({
   isLoading = false,
   isError = false,
   onScanAgain,
+  onViewDetails,
   plantName,
   scientificName,
   careInstructions
@@ -78,6 +80,16 @@ const ResultView: React.FC<ResultViewProps> = ({
         )}
         
         <View className="my-6">
+          {!isLoading && !isError && plantName && onViewDetails && (
+            <Button
+              variant="outline"
+              onPress={onViewDetails}
+              className="w-full mb-4"
+            >
+              View Plant Details
+            </Button>
+          )}
+          
           <Button
             variant="primary"
             onPress={onScanAgain}
