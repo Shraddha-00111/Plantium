@@ -14,36 +14,36 @@ const LOCAL_PLANT_IMAGES: Record<string, any> = {
 };
 
 // Use a simple default image that we know exists in the React Native framework
-const DEFAULT_IMAGE = { uri: 'https://reactnative.dev/img/tiny_logo.png' };
+const DEFAULT_IMAGE = './assests/image/default.jpg';
 
-// Get the matching local image for a plant, or use the captured image
-const getPlantImage = (plantName: string, capturedImageUri?: string) => {
-  try {
-    // Always prioritize the captured image when available
-    if (capturedImageUri) {
-      return { uri: capturedImageUri };
-    }
+// // Get the matching local image for a plant, or use the captured image
+// const getPlantImage = (plantName: string, capturedImageUri?: string) => {
+//   try {
+//     // Always prioritize the captured image when available
+//     if (capturedImageUri) {
+//       return { uri: capturedImageUri };
+//     }
     
-    // Try to find a matching local image based on plant name
-    if (plantName) {
-      const normalizedName = plantName.toLowerCase().trim();
+//     // Try to find a matching local image based on plant name
+//     if (plantName) {
+//       const normalizedName = plantName.toLowerCase().trim();
       
-      // Check for common plant names that we have images for
-      for (const [key, image] of Object.entries(LOCAL_PLANT_IMAGES)) {
-        if (normalizedName.includes(key)) {
-          return image;
-        }
-      }
-    }
+//       // Check for common plant names that we have images for
+//       for (const [key, image] of Object.entries(LOCAL_PLANT_IMAGES)) {
+//         if (normalizedName.includes(key)) {
+//           return image;
+//         }
+//       }
+//     }
     
-    // If no matching image is found, use the default React Native logo
-    return DEFAULT_IMAGE;
-  } catch (error) {
-    console.error('Error loading plant image:', error);
-    // In case of any errors, return a guaranteed working image
-    return DEFAULT_IMAGE;
-  }
-};
+//     // If no matching image is found, use the default React Native logo
+//     return DEFAULT_IMAGE;
+//   } catch (error) {
+//     console.error('Error loading plant image:', error);
+//     // In case of any errors, return a guaranteed working image
+//     return DEFAULT_IMAGE;
+//   }
+// };
 
 // Mock trait items data
 const traitItems = [
@@ -180,7 +180,7 @@ export default function PlantDetailScreen() {
     diseaseName: params.diseaseName as string || '',
     diseaseDescription: params.description as string || '',
     // Get the appropriate image source with fallbacks
-    coverImage: getPlantImage(params.plantName as string, params.imageUri as string),
+    coverImage: ('../assets/images/default.jpg'),
   };
 
   // Handle image load completion
@@ -309,7 +309,7 @@ export default function PlantDetailScreen() {
         <View className="w-full h-56 bg-gray-200">
           <Animated.View style={{ opacity: fadeAnim, height: '100%', width: '100%' }}>
             <Image
-              source={plantData.coverImage}
+              // source={plantData.coverImage}
               className="w-full h-full"
               resizeMode="cover"
               onLoad={handleImageLoad}

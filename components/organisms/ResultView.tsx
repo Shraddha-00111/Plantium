@@ -51,7 +51,7 @@ const ResultView: React.FC<ResultViewProps> = ({
   };
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background ">
       <AppBar 
         title="Diagnosis Result" 
         showBackButton 
